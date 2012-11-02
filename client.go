@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 )
@@ -98,10 +99,10 @@ func (kc *KeystoneClient) runReq(req *http.Request) (*http.Response, error) {
 	if debugprint {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			println(err.Error())
+			fmt.Println(err.Error())
 		}
-		println("")
-		print(string(dump))
+		fmt.Println("")
+		fmt.Println(string(dump))
 	}
 	return kc.client.Do(req)
 }
@@ -137,10 +138,10 @@ func (kc *KeystoneClient) ServiceCatalog() (*ServiceCatalog, error) {
 	if debugprint {
 		dump, err := httputil.DumpResponse(resp, true)
 		if err != nil {
-			println(err.Error())
+			fmt.Println(err.Error())
 		}
-		println("")
-		print(string(dump))
+		fmt.Println("")
+		fmt.Println(string(dump))
 	}
 
 	return nil, nil
