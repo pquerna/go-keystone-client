@@ -71,8 +71,8 @@ type KeystoneClient struct {
 	client *http.Client
 }
 
-func (kc *KeystoneClient) baseURL() string {
-	rv := kc.opts.BaseURL + kc.opts.Version
+func (kc *KeystoneClient) getURL(extra string) string {
+	rv := kc.opts.BaseURL + kc.opts.Version + extra
 	return rv
 }
 
@@ -108,13 +108,20 @@ func (kc *KeystoneClient) runReq(req *http.Request) (*http.Response, error) {
 }
 
 func (kc *KeystoneClient) prepReq(method string, url string, body []byte) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	var iobody *bytes.Buffer = nil
+
+	if body != nil {
+		iobody = bytes.NewBuffer(body)
+	}
+
+	req, err := http.NewRequest(method, url, iobody)
 
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("User-Agent", kc.opts.UserAgent)
+	req.Header.Set("Content-Type", "application/json")
 	req.ContentLength = int64(len(body))
 
 	return req, nil
@@ -127,7 +134,7 @@ func (kc *KeystoneClient) ServiceCatalog() (*ServiceCatalog, error) {
 		return nil, err
 	}
 
-	req, err := kc.prepReq("POST", kc.baseURL(), body)
+	req, err := kc.prepReq("POST", kc.getURL("/tokens"), body)
 
 	if err != nil {
 		return nil, err
