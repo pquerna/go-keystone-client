@@ -24,14 +24,29 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-type MySuite struct{}
+type ClientSuite struct {
+	server *MockHTTPServer
+	baseURL string
+}
 
-var _ = Suite(&MySuite{})
+var _ = Suite(&ClientSuite{})
 
-func (s *MySuite) TestInvalidParams(c *C) {
+func (s *ClientSuite) SetUpSuite(c *C) {
+  /* TODO: abspath */
+  s.server = NewMockHTTPServer(".")
+  s.server.ListenAndServe()
+  s.baseURL = s.server.URL()
+}
+
+func (s *ClientSuite) TearDownSuite(c *C) {
+  s.server.Close()
+}
+
+func (s *ClientSuite) TestInvalidParams(c *C) {
 
 	opt := ClientOptions{
 		Username: "foo",
+		BaseURL: s.baseURL,
 	}
 
 	client, err := Dial(opt)
@@ -50,10 +65,11 @@ func (s *MySuite) TestInvalidParams(c *C) {
 
 }
 
-func (s *MySuite) TestServiceCatalog(c *C) {
+func (s *ClientSuite) TestInvalidUsername(c *C) {
 	opt := ClientOptions{
 		Username: "foo",
 		APIKey:   "XXXXX",
+		BaseURL: s.baseURL + "invalid_username/",
 	}
 
 	client, err := Dial(opt)
@@ -66,10 +82,11 @@ func (s *MySuite) TestServiceCatalog(c *C) {
 
 }
 
-func (s *MySuite) TestServiceCatalog2(c *C) {
+func (s *ClientSuite) TestServiceCatalog2(c *C) {
 	opt := ClientOptions{
 		Username: "foo",
 		Password: "XXXXX",
+		BaseURL: s.baseURL,
 	}
 
 	client, err := Dial(opt)

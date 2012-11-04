@@ -1,4 +1,7 @@
 
+ROOT_DIR := $(shell pwd)
+GOPATH := ${ROOT_DIR}/deps
+
 all: test build
 	@echo "Done"
 
