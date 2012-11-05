@@ -25,28 +25,28 @@ import (
 func Test(t *testing.T) { TestingT(t) }
 
 type ClientSuite struct {
-	server *MockHTTPServer
+	server  *MockHTTPServer
 	baseURL string
 }
 
 var _ = Suite(&ClientSuite{})
 
 func (s *ClientSuite) SetUpSuite(c *C) {
-  /* TODO: abspath */
-  s.server = NewMockHTTPServer(".")
-  s.server.ListenAndServe()
-  s.baseURL = s.server.URL()
+	/* TODO: abspath */
+	s.server = NewMockHTTPServer("fixtures")
+	s.server.ListenAndServe()
+	s.baseURL = s.server.URL()
 }
 
 func (s *ClientSuite) TearDownSuite(c *C) {
-  s.server.Close()
+	s.server.Close()
 }
 
 func (s *ClientSuite) TestInvalidParams(c *C) {
 
 	opt := ClientOptions{
 		Username: "foo",
-		BaseURL: s.baseURL,
+		BaseURL:  s.baseURL,
 	}
 
 	client, err := Dial(opt)
@@ -69,7 +69,7 @@ func (s *ClientSuite) TestInvalidUsername(c *C) {
 	opt := ClientOptions{
 		Username: "foo",
 		APIKey:   "XXXXX",
-		BaseURL: s.baseURL + "invalid_username/",
+		BaseURL:  s.baseURL + "invalid_username/",
 	}
 
 	client, err := Dial(opt)
@@ -86,7 +86,7 @@ func (s *ClientSuite) TestServiceCatalog2(c *C) {
 	opt := ClientOptions{
 		Username: "foo",
 		Password: "XXXXX",
-		BaseURL: s.baseURL,
+		BaseURL:  s.baseURL,
 	}
 
 	client, err := Dial(opt)

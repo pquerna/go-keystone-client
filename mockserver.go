@@ -18,15 +18,58 @@
 package keystone
 
 import (
-	"fmt"
+	"bufio"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
+	"path"
+	"strings"
 )
 
-func mockHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Inside handler")
-	fmt.Println("Inside handler")
-	fmt.Fprintf(w, "Hello world from my Go program!")
+func mockHandler(sourceDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		filename := r.Method + r.RequestURI
+
+		filename = strings.Replace(filename, "/", "_", -1)
+		filename = strings.Replace(filename, ".", "_", -1)
+		filename = strings.Replace(filename, "-", "_", -1)
+		filename = filename + ".asis"
+
+		filename = path.Join(sourceDir, filename)
+
+		f, err := os.Open(filename)
+
+		if err != nil {
+			http.Error(w, "Invalid path: "+err.Error(), 599)
+			return
+		}
+
+		defer f.Close()
+
+		br := bufio.NewReader(f)
+
+		resp, err := http.ReadResponse(br, r)
+		if err != nil {
+			http.Error(w, "Invalid HTTP Response in "+filename+": "+err.Error(), 599)
+			return
+		}
+		rbody, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			http.Error(w, "Problem reading http response "+filename+": "+err.Error(), 599)
+			return
+		}
+
+		for k := range resp.Header {
+			for _, v := range resp.Header[k] {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+
+		w.Write(rbody)
+	}
 }
 
 type MockHTTPServer struct {
@@ -36,7 +79,7 @@ type MockHTTPServer struct {
 
 func (mts *MockHTTPServer) ListenAndServe() error {
 
-	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0, })
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 
 	mts.listener = l
 
@@ -59,7 +102,8 @@ func (mts *MockHTTPServer) Close() {
 
 func NewMockHTTPServer(sourceDir string) *MockHTTPServer {
 	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(mockHandler))
+
+	mux.Handle("/", http.HandlerFunc(mockHandler(sourceDir)))
 	return &MockHTTPServer{
 		server: http.Server{
 			Handler: mux,
