@@ -82,11 +82,11 @@ func (s *ClientSuite) TestInvalidUsername(c *C) {
 
 }
 
-func (s *ClientSuite) TestServiceCatalog2(c *C) {
+func (s *ClientSuite) TestServiceCatalog(c *C) {
 	opt := ClientOptions{
 		Username: "foo",
 		Password: "XXXXX",
-		BaseURL:  s.baseURL,
+		BaseURL:  s.baseURL + "valid/",
 	}
 
 	client, err := Dial(opt)

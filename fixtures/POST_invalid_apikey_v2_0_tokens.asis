@@ -1,0 +1,4 @@
+HTTP/1.0 401 Unauthorized
+Content-Type: application/json
+
+{"unauthorized":{"code":401,"message":"Username or api key is invalid"}}
