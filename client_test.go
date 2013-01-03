@@ -76,7 +76,7 @@ func (s *ClientSuite) TestInvalidUsername(c *C) {
 
 	sc, err := client.ServiceCatalog()
 
-	c.Assert(err, IsNil)
+	c.Assert(err, ErrorMatches, "Got an Error(.+)")
 
 	c.Assert(sc, IsNil)
 
@@ -95,6 +95,6 @@ func (s *ClientSuite) TestServiceCatalog(c *C) {
 
 	c.Assert(err, IsNil)
 
-	c.Assert(sc, IsNil)
+	c.Assert(sc, NotNil)
 
 }

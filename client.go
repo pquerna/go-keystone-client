@@ -22,11 +22,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"time"
 )
 
-var debugprint = true
+var debugprint = false
 
 type ClientOptions struct {
 	Username  string
@@ -42,6 +44,8 @@ var defaultOptions = ClientOptions{
 	BaseURL:   "https://identity.api.rackspacecloud.com/",
 	UserAgent: "keystone-client (golang; https://github.com/pquerna/go-keystone-client)",
 }
+
+const KEYSTONE_ISO8601_WEIRD_FORMAT = "2006-01-02T15:04:05.000-07:00"
 
 type authenticateWithPassword struct {
 	Auth struct {
@@ -61,9 +65,45 @@ type authenticateWithAPIKey struct {
 	} `json:"auth"`
 }
 
+type EntryEndpoint struct {
+	Region     string
+	TenantId   string
+	PublicURL  string
+	InternaURL string
+}
+
+type CatalogEntry struct {
+	Name      string
+	Type      string
+	Endpoints []EntryEndpoint
+}
+
 type ServiceCatalog struct {
-	TenantId string
-	/* TOOD: map of services */
+	TenantId      string
+	TenantName    string
+	Token         string
+	DefaultRegion string
+	Expires       time.Time
+	Entries       []CatalogEntry
+}
+
+type authResponse struct {
+	Access struct {
+		Token struct {
+			Id      string
+			Expires string
+			Tenant  struct {
+				Id   string
+				Name string
+			}
+		}
+		ServiceCatalog []CatalogEntry
+		User           struct {
+			Id                 string
+			Name               string
+			ExRaxDefaultRegion string `json:"RAX-AUTH:defaultRegion"`
+		}
+	}
 }
 
 type KeystoneClient struct {
@@ -128,13 +168,13 @@ func (kc *KeystoneClient) prepReq(method string, url string, body []byte) (*http
 }
 
 func (kc *KeystoneClient) ServiceCatalog() (*ServiceCatalog, error) {
-	data := kc.authReqBody()
-	body, err := json.Marshal(data)
+	reqBodyData := kc.authReqBody()
+	reqBody, err := json.Marshal(reqBodyData)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := kc.prepReq("POST", kc.getURL("/tokens"), body)
+	req, err := kc.prepReq("POST", kc.getURL("/tokens"), reqBody)
 
 	if err != nil {
 		return nil, err
@@ -151,7 +191,53 @@ func (kc *KeystoneClient) ServiceCatalog() (*ServiceCatalog, error) {
 		fmt.Println(string(dump))
 	}
 
-	return nil, nil
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		/* TODO: handle  errors correctly */
+		//    var er errorResponse
+		//  	json.Unmarshal([]byte(data), &er)
+
+		return nil, errors.New("Got an Error: ")
+	}
+	var ar authResponse
+
+	json.Unmarshal([]byte(data), &ar)
+
+	sc := new(ServiceCatalog)
+	sc.Entries = ar.Access.ServiceCatalog
+	sc.Token = ar.Access.Token.Id
+	sc.TenantId = ar.Access.Token.Tenant.Id
+	sc.TenantName = ar.Access.Token.Tenant.Name
+
+	if len(ar.Access.Token.Expires) == 0 {
+		return nil, errors.New("No Expiration on token returned")
+	}
+
+	sc.Expires, err = time.Parse(KEYSTONE_ISO8601_WEIRD_FORMAT, ar.Access.Token.Expires)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sc.DefaultRegion = ar.Access.User.ExRaxDefaultRegion
+
+	if len(sc.Token) == 0 {
+		return nil, errors.New("No Token returned")
+	}
+
+	if len(sc.TenantId) == 0 {
+		return nil, errors.New("No TenantId returned")
+	}
+
+	if len(sc.TenantName) == 0 {
+		return nil, errors.New("No TenantName returned")
+	}
+
+	return sc, nil
 }
 
 func NewKeystoneClient() *KeystoneClient {
